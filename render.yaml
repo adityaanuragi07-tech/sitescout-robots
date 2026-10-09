@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: sitescout-robots
+    runtime: python
+    plan: starter            # a paid plan is needed for a persistent disk
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /var/data/data.db
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
