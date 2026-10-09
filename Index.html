@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>SiteScout Robots</title><link rel="manifest" href="/manifest.json"><link rel="apple-touch-icon" href="/icon-192.png"><meta name="theme-color" content="#1b2823"><meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#e8ebe4;--ink:#1b2823;--mut:#5d6b66;--card:#f6f7f3;--line:#c9d0c6;--acc:#f0b400;--steel:#2f5560}
+@media(prefers-color-scheme:dark){:root{--bg:#141c19;--ink:#e6ebe4;--mut:#9aa8a1;--card:#1d2723;--line:#34423c;--steel:#6fa3b3}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+header{position:sticky;top:0;background:var(--ink);color:var(--bg);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+header b{font-size:18px;letter-spacing:.3px}nav{display:flex;gap:4px;overflow-x:auto;padding:8px 12px;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;color:var(--mut);padding:8px 12px;font:inherit;border-radius:6px}nav button.on{background:var(--acc);color:#1b2823;font-weight:600}
+main{max-width:640px;margin:0 auto;padding:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+h2{margin:4px 0 12px;font-size:22px}label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{padding:8px 12px;border:1px solid var(--line);border-radius:20px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
+.chip.on{background:var(--steel);color:#fff;border-color:var(--steel)}
+.btn{width:100%;padding:13px;border:0;border-radius:8px;background:var(--acc);color:#1b2823;font:inherit;font-weight:700;margin-top:14px}
+.btn.alt{background:none;border:1px solid var(--line);color:var(--ink)}.row{display:flex;justify-content:space-between;gap:8px}
+.mut{color:var(--mut);font-size:14px}.tag{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--line)}.big{font-size:26px;font-weight:700}
+#msg{position:fixed;bottom:16px;left:16px;right:16px;max-width:608px;margin:auto;padding:12px;border-radius:8px;background:var(--ink);color:var(--bg);display:none}
+</style></head><body>
+<header><b>SiteScout Robots</b><span id="who" class="mut"></span></header><nav id="nav"></nav><main id="app"></main><div id="msg"></div>
+<script>
+const $=s=>document.querySelector(s),app=$('#app');let S={user:JSON.parse(localStorage.u||'null'),tab:'new',f:{industry:'',conditions:[],measure_needs:[],mode:'rent'}};
+const api=async(p,o={})=>{const r=await fetch('/api'+p,{method:o.m||'GET',headers:{'Content-Type':'application/json',...(S.user?{Authorization:'Bearer '+S.user.token}:{})},body:o.b?JSON.stringify(o.b):undefined});
+ const d=await r.json();if(!r.ok)throw new Error(d.error);return d};
+const toast=t=>{const m=$('#msg');m.textContent=t;m.style.display='block';setTimeout(()=>m.style.display='none',3500)};
+const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN'), esc=s=>String(s??'').replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+const chips=(k,opts,multi=true)=>`<div class="chips">${opts.map(o=>`<button type="button" class="chip ${(multi?S.f[k].includes(o):S.f[k]===o)?'on':''}" onclick="pick('${k}','${o}',${multi})">${o}</button>`).join('')}</div>`;
+function pick(k,v,multi){const f=S.f;if(multi)f[k]=f[k].includes(v)?f[k].filter(x=>x!==v):[...f[k],v];else f[k]=v;keep();render()}
+function keep(){document.querySelectorAll('[data-f]').forEach(e=>S.f[e.dataset.f]=e.value)}
+function nav(){const t=S.user?[['new','New request'],['quotes','Quotes'],['orders','Orders'],...(S.user.role==='admin'?[['admin','Admin']]:[]),['out','Log out']]:[];
+ $('#nav').innerHTML=t.map(([k,l])=>`<button class="${S.tab===k?'on':''}" onclick="go('${k}')">${l}</button>`).join('');$('#who').textContent=S.user?S.user.name:''}
+function go(t){if(t==='out'){localStorage.removeItem('u');S.user=null;S.tab='new'}else S.tab=t;render()}
+async function render(){nav();try{app.innerHTML=!S.user?authView():await({new:newView,quotes:quotesView,orders:ordersView,admin:adminView,pick:pickView}[S.tab])()}catch(e){toast(e.message)}}
+function authView(){return`<div class="card"><h2>Survey robots for rough sites</h2><p class="mut">Tell us the site and what you need measured. Rent or buy a robot with the sensors you pick.</p>
+<label>Name</label><input id="n"><label>Company / department</label><input id="o"><label>Phone</label><input id="p"><label>Email</label><input id="e" type="email"><label>Password</label><input id="w" type="password">
+<button class="btn" onclick="auth('register')">Create account</button><button class="btn alt" onclick="auth('login')">Log in</button></div>`}
+async function auth(m){try{const d=await api('/auth/'+m,{m:'POST',b:{name:$('#n').value,org:$('#o').value,phone:$('#p').value,email:$('#e').value,password:$('#w').value}});
+ S.user=d;localStorage.u=JSON.stringify(d);S.tab='new';render()}catch(e){toast(e.message)}}
+const IND=['mining','cave','construction','forest'],COND=['dark','dust','water','gas'],NEED=['mapping','thermal','gas','cracks','vegetation','subsurface','air quality','volume'];
+function newView(){const f=S.f;return`<h2>What does your site need?</h2><div class="card"><label>Industry</label>${chips('industry',IND,false)}
+<label>Site name</label><input data-f="site_name" value="${esc(f.site_name)}"><div class="row"><div><label>Area (sq m)</label><input data-f="area_sqm" type="number" value="${f.area_sqm||''}"></div><div><label>Depth / height (m)</label><input data-f="depth_m" type="number" value="${f.depth_m||''}"></div></div>
+<label>Terrain</label><select data-f="terrain">${['flat','rubble','steep','tunnel','dense vegetation'].map(t=>`<option ${f.terrain===t?'selected':''}>${t}</option>`).join('')}</select>
+<label>Conditions</label>${chips('conditions',COND)}<label>What to measure</label>${chips('measure_needs',NEED)}
+<label>Buy or rent</label>${chips('mode',['rent','buy'],false)}<label>Days needed</label><input data-f="duration_days" type="number" min="1" value="${f.duration_days||7}">
+<label>Notes</label><textarea data-f="notes" rows="2">${esc(f.notes)}</textarea><button class="btn" onclick="submitReq()">See matching robots</button></div>`}
+async function submitReq(){keep();try{const d=await api('/requirements',{m:'POST',b:S.f});S.req=d;S.pk={};S.tab='pick';render()}catch(e){toast(e.message)}}
+let SENS=[];
+async function pickView(){SENS=await api('/sensors');const {id,suggestions}=S.req;if(!suggestions.length)return'<div class="card">No robot matches yet. Our team will review your request and send a custom quote.</div>';
+ return`<h2>Matching robots</h2>`+suggestions.map((s,i)=>{const r=s.robot;S.pk[r.id]??=[...s.sensor_ids];return`<div class="card"><div class="row"><b>${r.name}</b><span class="tag">${r.type}</span></div><p class="mut">${r.description}<br>${r.battery_hours} h battery · ${r.max_payload_kg} kg payload</p>
+ <div class="chips">${SENS.filter(x=>r.sensor_ids.includes(x.id)).map(x=>`<button class="chip ${S.pk[r.id].includes(x.id)?'on':''}" onclick="tog(${r.id},${x.id})">${x.name}</button>`).join('')}</div>
+ <p class="big" id="pr${r.id}">…</p><button class="btn" onclick="getQuote(${r.id})">Get quote</button></div>`}).join('')}
+function tog(r,s){const a=S.pk[r];S.pk[r]=a.includes(s)?a.filter(x=>x!==s):[...a,s];render().then(()=>0)}
+async function showPrices(){for(const id in(S.pk||{})){try{const f=S.f,p=await api(`/price?robot=${id}&sensors=${S.pk[id]}&mode=${f.mode}&days=${f.duration_days}`);const e=$('#pr'+id);if(e)e.textContent=inr(p.amount)+(f.mode==='rent'?' for '+f.duration_days+' days':'')}catch(x){const e=$('#pr'+id);if(e){e.textContent=x.message;e.style.fontSize='14px'}}}}
+async function getQuote(r){try{await api(`/requirements/${S.req.id}/quote`,{m:'POST',b:{robot_id:r,sensor_ids:S.pk[r]}});toast('Quote saved');go('quotes')}catch(e){toast(e.message)}}
+async function quotesView(){const q=await api('/quotes');return`<h2>Quotes</h2>`+(q.map(x=>`<div class="card"><div class="row"><b>${x.robot}</b><span class="tag">${x.status}</span></div><p class="mut">${x.mode} · ${x.days} days</p><div class="big">${inr(x.amount)}</div><p class="mut">Deposit due: ${inr(x.deposit)}</p>
+ ${x.status==='sent'&&S.user.role==='buyer'?`${x.mode==='rent'?`<label>Start date</label><input type="date" id="d${x.id}">`:''}<button class="btn" onclick="accept(${x.id})">Accept quote</button>`:''}</div>`).join('')||'<p class="mut">No quotes yet. Start with a new request.</p>')}
+async function accept(id){try{const d=await api(`/quotes/${id}/accept`,{m:'POST',b:{start_date:$('#d'+id)?.value}});await api(`/orders/${d.order_id}/pay`,{m:'POST'});toast('Order confirmed. Deposit recorded.');go('orders')}catch(e){toast(e.message)}}
+async function ordersView(){const o=await api('/orders');return`<h2>Orders</h2>`+(await Promise.all(o.map(async x=>{const rp=await api(`/orders/${x.id}/reports`);return`<div class="card"><div class="row"><b>${x.robot}</b><span class="tag">${x.status}</span></div>
+ <p class="mut">${x.serial||''} ${x.start_date?`· ${x.start_date} to ${x.end_date}`:''} ${x.tracking?'· Tracking '+esc(x.tracking):''}${x.buyer&&S.user.role==='admin'?' · '+esc(x.buyer):''}</p>
+ ${rp.map(r=>`<a href="${esc(r.url)}">${esc(r.title)}</a><br>`).join('')}
+ ${S.user.role==='admin'?`<select onchange="setStatus(${x.id},this.value)"><option value="">Change status</option>${['confirmed','shipped','delivered','returned','completed','cancelled'].map(s=>`<option>${s}</option>`).join('')}</select>`:''}</div>`}))).join('')||'<p class="mut">No orders yet.</p>'}
+async function setStatus(id,s){if(!s)return;const t=s==='shipped'?prompt('Tracking number'):null;try{await api('/admin/orders/'+id,{m:'PATCH',b:{status:s,tracking:t}});render()}catch(e){toast(e.message)}}
+async function adminView(){const [st,rq]=await Promise.all([api('/admin/stats'),api('/requirements')]);return`<h2>Admin</h2><div class="card"><div class="row"><span>New requests</span><b>${st.new_requirements}</b></div><div class="row"><span>Active orders</span><b>${st.active_orders}</b></div><div class="row"><span>Deposits collected</span><b>${inr(st.revenue)}</b></div>
+ <p class="mut">Units: ${st.units.map(u=>u.status+' '+u.c).join(', ')}</p></div><h2>Requirements</h2>`+rq.map(r=>`<div class="card"><div class="row"><b>${esc(r.site_name||r.industry)}</b><span class="tag">${r.status}</span></div><p class="mut">${esc(r.buyer)} ${esc(r.org||'')}<br>${r.industry} · ${r.area_sqm||'?'} sq m · ${esc(r.conditions)} · needs: ${esc(r.measure_needs)}</p></div>`).join('')}
+const _r=render;render=async function(){await _r();if(S.tab==='pick')showPrices()};render();
+if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js");
+</script></body></html>
